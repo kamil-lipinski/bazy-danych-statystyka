@@ -1,0 +1,46 @@
+drop table COUNTRIES cascade constraints PURGE;
+drop table DEPARTMENTS cascade constraints PURGE;
+drop table EMPLOYEES cascade constraints PURGE;
+drop table JOB_HISTORY cascade constraints PURGE;
+drop table JOBS cascade constraints PURGE;
+drop table LOCATIONS cascade constraints PURGE;
+drop table REGIONS cascade constraints PURGE;
+
+CREATE TABLE COUNTRIES AS (SELECT * FROM HR.COUNTRIES);
+CREATE TABLE DEPARTMENTS AS (SELECT * FROM HR.DEPARTMENTS);
+CREATE TABLE EMPLOYEES AS (SELECT * FROM HR.EMPLOYEES);
+CREATE TABLE JOB_HISTORY AS (SELECT * FROM HR.JOB_HISTORY);
+CREATE TABLE JOBS AS (SELECT * FROM HR.JOBS);
+CREATE TABLE LOCATIONS AS (SELECT * FROM HR.LOCATIONS);
+CREATE TABLE REGIONS AS (SELECT * FROM HR.REGIONS);
+
+/* 1. Z tabeli employees wypisz w jednej kolumnie nazwisko i zarobki – nazwij kolumnę
+wynagrodzenie, dla osób z departamentów 20 i 50 z zarobkami pomiędzy 2000 a
+7000, uporządkuj kolumny według nazwiska */
+
+SELECT last_name || ' ' || salary AS "wynagrodzenie" FROM employees
+WHERE department_id IN(20, 50) AND salary BETWEEN 2000 AND 7000 ORDER BY last_name;
+
+/* 2. Z tabeli employees wyciągnąć informację data zatrudnienia, nazwisko oraz kolumnę
+podaną przez użytkownika dla osób mających menadżera zatrudnionych w roku 2005.
+Uporządkować według kolumny podanej przez użytkownika */
+
+SELECT hire_date, last_name, &podaj_kolumne FROM employees
+WHERE manager_id IN (SELECT employee_id FROM employees WHERE EXTRACT(YEAR FROM hire_date) = 2005 )
+
+/* 3. Wypisać imiona i nazwiska razem, zarobki oraz numer telefonu porządkując dane
+według pierwszej kolumny malejąco a następnie drugiej rosnąco (użyć numerów do
+porządkowania) dla osób z trzecią literą nazwiska ‘e’ oraz częścią imienia podaną
+przez użytkownika */
+
+SELECT first_name || ' ' || last_name AS "imię i nazwisko", salary, phone_number
+FROM employees WHERE SUBSTR(last_name, 3, 1) = 'e' AND first_name LIKE '%&podaj_czesc_imienia%'
+ORDER BY 1 DESC, 2;
+
+/* 4. Wypisać imię i nazwisko, liczbę miesięcy przepracowanych – funkcje
+months_between oraz round oraz kolumnę wysokość_dodatku jako (użyć CASE lub DECODE):
+10% wynagrodzenia dla liczby miesięcy do 150
+20% wynagrodzenia dla liczby miesięcy od 150 do 200
+30% wynagrodzenia dla liczby miesięcy od 200
+uporządkować według liczby miesięcy */
+
