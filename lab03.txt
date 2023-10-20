@@ -1,0 +1,93 @@
+/* 1. Stworzyć blok anonimowy wypisujący zmienną numer_max równą maksymalnemu 
+numerowi Departamentu i dodaj do tabeli departamenty – departament z numerem 
+o 10 wiekszym, typ pola dla zmiennej z nazwą nowego departamentu 
+(zainicjować na EDUCATION) ustawić taki jak dla pola department_name w tabeli (%TYPE) */
+
+
+DECLARE
+    numer_max departments.department_id%TYPE;
+    dep_name departments.department_name%TYPE:= 'EDUCATION';
+BEGIN
+    SELECT max(department_id) INTO numer_max FROM departments;
+    DBMS_OUTPUT.PUT_LINE('Maksymalny numer departamentu: ' || numer_max);
+    INSERT INTO departments(department_id, department_name) VALUES ((numer_max+10), dep_name);
+    
+    /* 2. Do poprzedniego skryptu dodaj instrukcje zmieniającą location_id (3000) dla dodanego departamentu  */
+    UPDATE departments SET location_id = 3000 WHERE department_id = (numer_max+10);
+    
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Wystąpił błąd: ' || SQLERRM);
+    ROLLBACK; -- Wycofanie transakcji w przypadku błędu
+END;
+
+/* 3. Stwórz tabelę nowa z jednym polem typu varchar a następnie wpisz do 
+niej za pomocą pętli liczby od 1 do 10 bez liczb 4 i 6 */
+
+CREATE TABLE nowa(pole VARCHAR2(2));
+
+BEGIN
+  FOR i IN 1..10 LOOP
+    IF i != 4 AND i != 6 THEN
+        INSERT INTO nowa (pole) VALUES (TO_CHAR(i));
+    END IF;
+  END LOOP;
+END;
+
+/* 4. Wyciągnąć informacje z tabeli countries do jednej zmiennej (%ROWTYPE) 
+dla kraju o identyfikatorze ‘CA’. Wypisać nazwę i region_id na ekran */
+
+DECLARE
+    kraj countries%ROWTYPE;
+BEGIN
+    SELECT * INTO kraj FROM countries WHERE country_id = 'CA';
+    DBMS_OUTPUT.PUT_LINE('Nazwa kraju: ' || kraj.country_name);
+    DBMS_OUTPUT.PUT_LINE('Region ID: ' || kraj.region_id);
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Wystąpił błąd: ' || SQLERRM);
+END;
+
+/* 5. Za pomocą tabeli INDEX BY wyciągnąć informacje o nazwach departamentów 
+i wypisać na ekran 10 (numery 10,20,…,100) */
+
+DECLARE
+    TYPE deps_tab IS TABLE OF departments.department_name%TYPE INDEX BY BINARY_INTEGER;
+    deps_names deps_tab;
+BEGIN
+    FOR i IN 1..10 LOOP
+        SELECT department_name INTO deps_names(i*10) FROM departments WHERE department_id = i*10;
+    END LOOP;
+    
+    FOR i IN 1..10 LOOP
+        DBMS_OUTPUT.PUT_LINE('Numer departamentu: ' || i*10 );
+        DBMS_OUTPUT.PUT_LINE('Nazwa departamentu: ' || deps_names(i*10));
+        DBMS_OUTPUT.PUT_LINE('--------------------------------------------');
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Wystąpił błąd: ' || SQLERRM);
+END;
+
+/* 6. Zmienić skrypt z 5 tak aby pojawiały się wszystkie informacje na 
+ekranie (wstawić %ROWTYPE do tabeli) */
+
+DECLARE
+    TYPE deps_tab IS TABLE OF departments%ROWTYPE INDEX BY BINARY_INTEGER;
+    deps_info deps_tab;
+BEGIN
+    FOR i IN 1..10 LOOP
+        SELECT * INTO deps_info(i*10) FROM departments WHERE department_id = i*10;
+    END LOOP;
+    
+    FOR i IN 1..10 LOOP
+        DBMS_OUTPUT.PUT_LINE('Numer departamentu: ' || deps_info(i*10).department_id );
+        DBMS_OUTPUT.PUT_LINE('Nazwa departamentu: ' || deps_info(i*10).department_name);
+        DBMS_OUTPUT.PUT_LINE('Lokalizacja: ' || deps_info(i*10).location_id);
+        DBMS_OUTPUT.PUT_LINE('Manager: ' || deps_info(i*10).manager_id);
+        DBMS_OUTPUT.PUT_LINE('--------------------------------------------');
+    END LOOP;
+EXCEPTION
+    WHEN OTHERS THEN
+        DBMS_OUTPUT.PUT_LINE('Wystąpił błąd: ' || SQLERRM);
+END;
