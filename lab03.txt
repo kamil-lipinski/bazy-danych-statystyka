@@ -3,7 +3,7 @@ numerowi Departamentu i dodaj do tabeli departamenty – departament z numerem
 o 10 wiekszym, typ pola dla zmiennej z nazwą nowego departamentu 
 (zainicjować na EDUCATION) ustawić taki jak dla pola department_name w tabeli (%TYPE) */
 
-
+SET SERVEROUTPUT ON;
 DECLARE
     numer_max departments.department_id%TYPE;
     dep_name departments.department_name%TYPE:= 'EDUCATION';
@@ -37,6 +37,7 @@ END;
 /* 4. Wyciągnąć informacje z tabeli countries do jednej zmiennej (%ROWTYPE) 
 dla kraju o identyfikatorze ‘CA’. Wypisać nazwę i region_id na ekran */
 
+SET SERVEROUTPUT ON;
 DECLARE
     kraj countries%ROWTYPE;
 BEGIN
@@ -72,6 +73,7 @@ END;
 /* 6. Zmienić skrypt z 5 tak aby pojawiały się wszystkie informacje na 
 ekranie (wstawić %ROWTYPE do tabeli) */
 
+SET SERVEROUTPUT ON;
 DECLARE
     TYPE deps_tab IS TABLE OF departments%ROWTYPE INDEX BY BINARY_INTEGER;
     deps_info deps_tab;
@@ -91,3 +93,67 @@ EXCEPTION
     WHEN OTHERS THEN
         DBMS_OUTPUT.PUT_LINE('Wystąpił błąd: ' || SQLERRM);
 END;
+
+/* 7.  Zadeklaruj kursor jako wynagrodzenie, nazwisko dla departamentu o numerze 50. 
+Dla elementów kursora wypisać na ekran, jeśli wynagrodzenie jest wyższe niż 3100: 
+nazwisko osoby i tekst ‘nie dawać podwyżki’ w przeciwnym przypadku: nazwisko + ‘dać podwyżkę’ */
+
+SET SERVEROUTPUT ON;
+DECLARE
+    CURSOR zad7 IS
+        SELECT salary, last_name FROM employees WHERE department_id = 50;
+    wiersz zad7%ROWTYPE;
+BEGIN
+    OPEN zad7;
+    LOOP
+        FETCH zad7 INTO wiersz;
+        EXIT WHEN zad7%NOTFOUND;
+        IF wiersz.salary > 3100 THEN
+            DBMS_OUTPUT.PUT_LINE(wiersz.last_name || ' nie dawać podwyżki');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE(wiersz.last_name || ' dać podwyżkę');
+        END IF;
+    END LOOP;
+    CLOSE zad7;
+END;
+
+/* 8. Zadeklarować kursor zwracający zarobki imię i nazwisko pracownika z parametrami,
+gdzie pierwsze dwa parametry określają widełki zarobków a trzeci część imienia pracownika. 
+Wypisać na ekran pracowników:
+a.   	z widełkami 1000- 5000 z częścią imienia a (może być również A)
+b.   	z widełkami 5000-20000 z częścią imienia u (może być również U) */
+
+SET SERVEROUTPUT ON;
+DECLARE
+    CURSOR zad8 (min_salary NUMBER, max_salary NUMBER, name_part VARCHAR2) IS
+        SELECT salary, first_name, last_name FROM employees 
+        WHERE salary BETWEEN min_salary AND max_salary AND 
+        UPPER(first_name) LIKE '%' || UPPER(name_part) || '%';
+    wiersz zad8%ROWTYPE;
+BEGIN
+    OPEN zad8(1000, 5000, 'a');
+    DBMS_OUTPUT.PUT_LINE('z widełkami 1000- 5000 z częścią imienia a (może być również A)');
+    LOOP
+        FETCH zad8 INTO wiersz;
+        EXIT WHEN zad8%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(wiersz.first_name || ' ' || wiersz.last_name || ' - ' || wiersz.salary);
+    END LOOP;
+    CLOSE zad8;
+    
+    OPEN zad8(5000, 20000, 'u');
+    DBMS_OUTPUT.PUT_LINE(' ');
+    DBMS_OUTPUT.PUT_LINE('z widełkami 5000- 20000 z częścią imienia a (może być również U)');
+    LOOP
+        FETCH zad8 INTO wiersz;
+        EXIT WHEN zad8%NOTFOUND;
+        DBMS_OUTPUT.PUT_LINE(wiersz.first_name || ' ' || wiersz.last_name || ' - ' || wiersz.salary);
+    END LOOP;
+    CLOSE zad8;
+END;
+
+/* 9. Stwórz procedury:
+a.   dodającą wiersz do tabeli Jobs – z dwoma parametrami wejściowymi określającymi Job_id, Job_title, przetestuj działanie wrzuć wyjątki – co najmniej when others
+b.   modyfikującą title w  tabeli Jobs – z dwoma parametrami id dla którego ma być modyfikacja oraz nową wartość dla Job_title – przetestować działanie, dodać swój wyjątek dla no Jobs updated – najpierw sprawdzić numer błędu
+c.   usuwającą wiersz z tabeli Jobs  o podanym Job_id– przetestować działanie, dodaj wyjątek dla no Jobs deleted
+d.   Wyciągającą zarobki i nazwisko (parametry zwracane przez procedurę) z tabeli employees dla pracownika o przekazanym jako parametr id
+e.   dodającą do tabeli employees wiersz – większość parametrów ustawić na domyślne (id poprzez sekwencję), stworzyć wyjątek jeśli wynagrodzenie dodawanego pracownika jest wyższe niż 20000 */
