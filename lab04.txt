@@ -1,0 +1,104 @@
+/* Stwórz funkcje:
+1. Zwracającą nazwę pracy dla podanego parametru id, dodaj wyjątek, jeśli taka praca nie istnieje */
+
+CREATE OR REPLACE FUNCTION pobierz_nazwe_pracy (p_id jobs.job_id%TYPE) RETURN jobs.job_title%TYPE
+IS
+    v_job_title jobs.job_title%TYPE;
+BEGIN
+    SELECT job_title INTO v_job_title FROM jobs WHERE job_id = p_id;
+    RETURN v_job_title;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Praca o podanym ID nie istnieje');
+END;
+
+/*TEST - VAlID ID*/
+SET SERVEROUTPUT ON;
+DECLARE
+    v_job_title jobs.job_title%TYPE;
+BEGIN
+    v_job_title := pobierz_nazwe_pracy('AD_PRES');
+    DBMS_OUTPUT.PUT_LINE('Nazwa pracy: ' || v_job_title);
+END;
+
+/*TEST - INVAlID ID*/
+SET SERVEROUTPUT ON;
+DECLARE
+    v_job_title jobs.job_title%TYPE;
+BEGIN
+    v_job_title := pobierz_nazwe_pracy('INVALID_JOB'); -- Provide an invalid job ID
+    DBMS_OUTPUT.PUT_LINE('Nazwa pracy: ' || v_job_title);
+END;
+
+/* 2. Zwracającą roczne zarobki (wynagrodzenie 12-to miesięczne plus premia jako wynagrodzenie * commission_pct) 
+dla pracownika o podanym id */
+
+CREATE OR REPLACE FUNCTION pobierz_roczne_zarobki (p_id employees.employee_id%TYPE) RETURN NUMBER
+IS
+    v_salary NUMBER;
+    v_bonus NUMBER;
+BEGIN
+    SELECT salary, salary * NVL(commission_pct, 0)
+    INTO v_salary, v_bonus FROM employees WHERE employee_id = p_id;
+    RETURN (v_salary * 12) + v_bonus;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN
+        RAISE_APPLICATION_ERROR(-20001, 'Pracownik o podanym ID nie istnieje');
+END;
+
+/*TEST - VAlID ID*/
+SET SERVEROUTPUT ON;
+DECLARE
+    v_yearly_earnings NUMBER;
+BEGIN
+    v_yearly_earnings := pobierz_roczne_zarobki(100);
+    DBMS_OUTPUT.PUT_LINE('Roczne zarobki: ' || v_yearly_earnings);
+END;
+
+/*TEST - INVAlID ID*/
+SET SERVEROUTPUT ON;
+DECLARE
+    v_yearly_earnings NUMBER;
+BEGIN
+    v_yearly_earnings := pobierz_roczne_zarobki(23523523);
+    DBMS_OUTPUT.PUT_LINE('Roczne zarobki: ' || v_yearly_earnings);
+END;
+
+/* 3. biorącą w nawias numer kierunkowy z numeru telefonu podanego jako varchar */
+
+CREATE OR REPLACE FUNCTION nawias_numer_kierunkowy (p_numer VARCHAR2) RETURN VARCHAR2
+IS
+    v_numer VARCHAR2(20);
+BEGIN
+    v_numer := '(' || SUBSTR(p_numer, 2, 2) || ')' || SUBSTR(p_numer, 4);
+    RETURN v_numer;
+END;
+
+/* TEST */
+SET SERVEROUTPUT ON;
+DECLARE
+  v_numer VARCHAR2(20);
+BEGIN
+  v_numer := nawias_numer_kierunkowy('+1234567890');
+  DBMS_OUTPUT.PUT_LINE('Numer: ' || v_numer);
+END;
+
+/* 4. Dla podanego w parametrze ciągu znaków zmieniającą pierwszą i 
+ostatnią literę na wielką – pozostałe na małe */
+
+CREATE OR REPLACE FUNCTION zmien_wielkosc_liter (p_str VARCHAR2) RETURN VARCHAR2
+IS
+    v_str VARCHAR2(50);
+BEGIN
+    v_str := UPPER(SUBSTR(p_str, 1, 1)) || LOWER(SUBSTR(p_str, 2, LENGTH(p_str)-2)) || UPPER(SUBSTR(p_str, LENGTH(p_str)));
+    RETURN v_str;
+END;
+
+/* TEST */
+SET SERVEROUTPUT ON;
+DECLARE
+  v_str VARCHAR2(50);
+BEGIN
+  v_str := zmien_wielkosc_liter('aNaNas');
+  DBMS_OUTPUT.PUT_LINE(v_str);
+END;
