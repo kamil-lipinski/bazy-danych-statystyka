@@ -204,17 +204,17 @@ CREATE TABLE zlodziej (id NUMBER PRIMARY KEY, username VARCHAR2(100), czas_zmian
 
 CREATE SEQUENCE zlodziej_seq START WITH 1 INCREMENT BY 1;
 
-    CREATE OR REPLACE TRIGGER sprawdz_widelki
-    BEFORE INSERT OR UPDATE OF salary ON employees FOR EACH ROW
-    DECLARE
-        v_id NUMBER;
-    BEGIN
-        IF :NEW.salary < 2000 OR :NEW.salary > 26000 THEN
-            :NEW.salary := :OLD.salary;
-            INSERT INTO zlodziej (id, username, czas_zmiany)
-            VALUES (zlodziej_seq.NEXTVAL, USER, SYSDATE);
-        END IF;
-    END;
+CREATE OR REPLACE TRIGGER sprawdz_widelki
+BEFORE INSERT OR UPDATE OF salary ON employees FOR EACH ROW 
+DECLARE
+    v_id NUMBER;
+BEGIN
+    IF :NEW.salary < 2000 OR :NEW.salary > 26000 THEN
+        :NEW.salary := :OLD.salary;
+        INSERT INTO zlodziej (id, username, czas_zmiany)
+        VALUES (zlodziej_seq.NEXTVAL, USER, SYSDATE);
+    END IF;
+END;
 
 /* TEST */
 UPDATE employees SET salary = 300000 WHERE employee_id = 101;
@@ -227,8 +227,7 @@ w tabeli employees. */
 CREATE SEQUENCE employees_seq START WITH 207 INCREMENT BY 1;
 
 CREATE OR REPLACE TRIGGER employees_auto_increment
-BEFORE INSERT ON employees
-FOR EACH ROW
+BEFORE INSERT ON employees FOR EACH ROW
 BEGIN
     SELECT employees_seq.NEXTVAL INTO :NEW.employee_id FROM DUAL;
 END;
@@ -240,6 +239,192 @@ INSERT INTO employees (first_name, last_name, email, hire_date, job_id, salary)
 VALUES ('Jan', 'Kowalski', 'jan@wp.pl', SYSDATE, 'IT_PROG', 5000);
 
 SELECT * FROM employees;
+
+/* 4. Stworzyć wyzwalacz, który zabroni dowolnej operacji na tabeli 
+JOD_GRADES (INSERT, UPDATE, DELETE) */
+
+CREATE OR REPLACE TRIGGER zabron_operacji_job_grades
+BEFORE INSERT OR UPDATE OR DELETE ON job_grades FOR EACH ROW
+BEGIN
+    RAISE_APPLICATION_ERROR(-20001, 'Operacje na tabeli JOD_GRADES są zabronione');
+END;
+
+/* TEST */
+DELETE FROM job_grades WHERE grade = 'A';
+
+/* 5. Stworzyć wyzwalacz, który przy próbie zmiany max i min salary w tabeli 
+jobs zostawia stare wartości. */
+
+CREATE OR REPLACE TRIGGER zabron_zmiany_salary
+BEFORE UPDATE OF max_salary, min_salary ON jobs
+FOR EACH ROW
+BEGIN
+    :NEW.max_salary := :OLD.max_salary;
+    :NEW.min_salary := :OLD.min_salary;
+END;
+
+/* TEST */
+UPDATE jobs SET max_salary = 99999, min_salary = 1111 WHERE job_id = 'AD_PRES';
+SELECT * FROM jobs WHERE job_id = 'AD_PRES';
+
+/* Stworzyć paczki:
+1. Składającą się ze stworzonych procedur i funkcji */
+
+CREATE OR REPLACE PACKAGE paczka_1 AS
+    FUNCTION liczba_pracownikow_i_departamentow(p_country_name countries.country_name%TYPE) RETURN VARCHAR2;
+    FUNCTION liczba_pracownikow_i_departamentow_w_kraju (p_country_name countries.country_name%TYPE) RETURN VARCHAR2;
+    FUNCTION nawias_numer_kierunkowy (p_numer VARCHAR2) RETURN VARCHAR2;
+    FUNCTION pesel_na_date (p_pesel VARCHAR2) RETURN VARCHAR2;
+    FUNCTION pobierz_nazwe_pracy (p_id jobs.job_id%TYPE) RETURN VARCHAR2;
+    FUNCTION pobierz_numer_kierunkowy (p_numer VARCHAR2) RETURN VARCHAR2;
+    FUNCTION pobierz_roczne_zarobki (p_id employees.employee_id%TYPE) RETURN NUMBER;
+    FUNCTION zmien_wielkosc_liter (p_str VARCHAR2) RETURN VARCHAR2;
+END paczka_1;
+/
+CREATE OR REPLACE PACKAGE BODY paczka_1 AS
+    FUNCTION liczba_pracownikow_i_departamentow(p_country_name countries.country_name%TYPE) RETURN VARCHAR2
+    IS
+        v_liczba_pracownikow NUMBER;
+        v_liczba_departamentow NUMBER;
+    BEGIN
+        SELECT COUNT(*) INTO v_liczba_pracownikow FROM employees
+        JOIN departments ON employees.department_id = departments.department_id
+        JOIN locations ON departments.location_id = locations.location_id
+        JOIN countries ON locations.country_id = countries.country_id
+        WHERE LOWER(countries.country_name) = LOWER(p_country_name);
+    
+        SELECT COUNT(*) INTO v_liczba_departamentow FROM departments
+        JOIN locations ON departments.location_id = locations.location_id
+        JOIN countries ON locations.country_id = countries.country_id
+        WHERE LOWER(countries.country_name) = LOWER(p_country_name);
+    
+        RETURN 'Liczba pracowników: ' || v_liczba_pracownikow || ', Liczba departamentów: ' || v_liczba_departamentow;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Brak kraju o podanej nazwie');
+    END liczba_pracownikow_i_departamentow;
+    
+    FUNCTION liczba_pracownikow_i_departamentow_w_kraju (p_country_name countries.country_name%TYPE) RETURN VARCHAR2
+    IS
+        v_liczba_pracownikow NUMBER;
+        /*v_liczba_departamentow NUMBER;*/
+    BEGIN
+        SELECT COUNT(*) INTO v_liczba_pracownikow FROM employees
+        JOIN departments ON employees.department_id = departments.department_id
+        JOIN locations ON departments.location_id = locations.location_id
+        JOIN countries ON locations.country_id = countries.country_id
+        WHERE LOWER(countries.country_name) = LOWER(p_country_name);
+    
+        RETURN 'Liczba pracowników: ' || v_liczba_pracownikow;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Brak kraju o podanej nazwie');
+    END liczba_pracownikow_i_departamentow_w_kraju;
+    
+    FUNCTION nawias_numer_kierunkowy (p_numer VARCHAR2) RETURN VARCHAR2
+    IS
+        v_numer VARCHAR2(20);
+    BEGIN
+        v_numer := '(' || SUBSTR(p_numer, 2, 2) || ')' || SUBSTR(p_numer, 4);
+        RETURN v_numer;
+    END nawias_numer_kierunkowy;
+    
+    FUNCTION pesel_na_date (p_pesel VARCHAR2) RETURN VARCHAR2
+    IS
+        v_rok VARCHAR2(4);
+        v_miesiac VARCHAR2(2);
+        v_dzien VARCHAR2(2);
+    BEGIN
+        IF LENGTH(p_pesel) = 11 THEN
+            v_rok := SUBSTR(p_pesel, 1, 2);
+            v_miesiac := SUBSTR(p_pesel, 3, 2);
+            v_dzien := SUBSTR(p_pesel, 5, 2);
+    
+            IF TO_NUMBER(v_miesiac) > 12 THEN
+                v_rok := '20' || v_rok;
+                v_miesiac := TO_CHAR(TO_NUMBER(v_miesiac) - 20);
+            ELSE
+                v_rok := '19' || v_rok;
+            END IF;
+    
+            RETURN v_rok || '-' || v_miesiac || '-' || v_dzien;
+        ELSE
+            RAISE_APPLICATION_ERROR(-20003, 'Nieprawidłowy format PESEL.');
+        END IF;
+    END pesel_na_date;
+    
+    FUNCTION pobierz_nazwe_pracy (p_id jobs.job_id%TYPE) RETURN jobs.job_title%TYPE
+    IS
+        v_job_title jobs.job_title%TYPE;
+    BEGIN
+        SELECT job_title INTO v_job_title FROM jobs WHERE job_id = p_id;
+        RETURN v_job_title;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Praca o podanym ID nie istnieje');
+    END pobierz_nazwe_pracy;
+    
+    FUNCTION pobierz_numer_kierunkowy (p_numer VARCHAR2) RETURN VARCHAR2
+    IS
+      v_numer_kierunkowy VARCHAR2(10);
+    BEGIN
+      IF LENGTH(p_numer) >= 10 THEN
+        v_numer_kierunkowy := SUBSTR(p_numer, 1, 3);
+        RETURN v_numer_kierunkowy;
+      ELSE
+        RAISE_APPLICATION_ERROR(-20002, 'Nieprawidłowy format numeru telefonu.');
+      END IF;
+    END pobierz_numer_kierunkowy;
+    
+    FUNCTION pobierz_roczne_zarobki (p_id employees.employee_id%TYPE) RETURN NUMBER
+    IS
+        v_salary NUMBER;
+        v_bonus NUMBER;
+    BEGIN
+        SELECT salary, salary * NVL(commission_pct, 0)
+        INTO v_salary, v_bonus FROM employees WHERE employee_id = p_id;
+        RETURN (v_salary * 12) + v_bonus;
+    EXCEPTION
+        WHEN NO_DATA_FOUND THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Pracownik o podanym ID nie istnieje');
+    END pobierz_roczne_zarobki;
+    
+    FUNCTION zmien_wielkosc_liter (p_str VARCHAR2) RETURN VARCHAR2
+    IS
+        v_str VARCHAR2(50);
+    BEGIN
+        v_str := UPPER(SUBSTR(p_str, 1, 1)) || LOWER(SUBSTR(p_str, 2, LENGTH(p_str)-2)) || UPPER(SUBSTR(p_str, LENGTH(p_str)));
+        RETURN v_str;
+    END zmien_wielkosc_liter;
+END paczka_1;
+
+
+
+/* TEST */
+SET SERVEROUTPUT ON;
+DECLARE
+  v_wynik VARCHAR2(100);
+BEGIN
+  v_wynik := paczka_1.liczba_pracownikow_i_departamentow('united states of america');
+  DBMS_OUTPUT.PUT_LINE(v_wynik);
+END;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
