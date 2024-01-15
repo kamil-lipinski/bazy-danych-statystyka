@@ -1,6 +1,13 @@
+CREATE TABLE z_country(
+    country_id NUMBER PRIMARY KEY, 
+    name VARCHAR2(100)
+);
+
+
 CREATE TABLE z_region(
     region_id NUMBER PRIMARY KEY, 
-    name VARCHAR2(100)
+    name VARCHAR2(100),
+    country_id NUMBER, CONSTRAINT FK_region_country FOREIGN KEY (country_id) REFERENCES z_country(country_id)
 );
 
 CREATE TABLE z_city(
@@ -9,8 +16,9 @@ CREATE TABLE z_city(
     region_id NUMBER, CONSTRAINT FK_city_region FOREIGN KEY (region_id) REFERENCES z_region(region_id)
 );
 
-CREATE TABLE z_weather_forecast(
-    datetime DATE PRIMARY KEY,
+CREATE TABLE z_weather(
+    weather_id NUMBER PRIMARY KEY,
+    datetime DATE,
     city_id NUMBER, CONSTRAINT FK_wf_city FOREIGN KEY (city_id) REFERENCES z_city(city_id),
     tempmax NUMBER,
     tempmin NUMBER,
@@ -31,16 +39,12 @@ CREATE TABLE z_weather_forecast(
     winddir NUMBER,
     sealevelpressure NUMBER,
     cloudcover NUMBER,
-    visibility NUMBER,
-    solarradiation NUMBER,
-    solarenergy NUMBER,
-    uvindex NUMBER,
-    severerisk NUMBER
+    visibility NUMBER
 );
 
-CREATE TABLE z_moon_sun(
-    moon_sun_id NUMBER PRIMARY KEY, 
-    datetime DATE, CONSTRAINT FK_ms_wf FOREIGN KEY (datetime) REFERENCES z_weather_forecast(datetime),
+CREATE TABLE z_astrology(
+    astrology_id NUMBER PRIMARY KEY, 
+    weather_id NUMBER, CONSTRAINT FK_astrology_weather FOREIGN KEY (weather_id) REFERENCES z_weather(weather_id),
     sunrise DATE,
     sunset DATE,
     moonphase NUMBER
@@ -48,10 +52,17 @@ CREATE TABLE z_moon_sun(
 
 CREATE TABLE z_desc(
     desc_id NUMBER PRIMARY KEY, 
-    datetime DATE, CONSTRAINT FK_desc_wf FOREIGN KEY (datetime) REFERENCES z_weather_forecast(datetime),
+    weather_id NUMBER, CONSTRAINT FK_desc_weather FOREIGN KEY (weather_id) REFERENCES z_weather(weather_id),
     conditions VARCHAR(100),
     description VARCHAR(500)
 );
+
+CREATE SEQUENCE z_country_seq START WITH 1 INCREMENT BY 1;
+CREATE OR REPLACE TRIGGER z_country_auto_increment
+BEFORE INSERT ON z_country FOR EACH ROW
+BEGIN
+    SELECT z_country_seq.NEXTVAL INTO :NEW.country_id FROM DUAL;
+END;
 
 CREATE SEQUENCE z_region_seq START WITH 1 INCREMENT BY 1;
 CREATE OR REPLACE TRIGGER z_region_auto_increment
@@ -67,11 +78,11 @@ BEGIN
     SELECT z_city_seq.NEXTVAL INTO :NEW.city_id FROM DUAL;
 END;
 
-CREATE SEQUENCE z_moon_sun_seq START WITH 1 INCREMENT BY 1;
-CREATE OR REPLACE TRIGGER z_moon_sun_auto_increment
-BEFORE INSERT ON z_moon_sun FOR EACH ROW
+CREATE SEQUENCE z_astrology_seq START WITH 1 INCREMENT BY 1;
+CREATE OR REPLACE TRIGGER z_astrology_auto_increment
+BEFORE INSERT ON z_astrology FOR EACH ROW
 BEGIN
-    SELECT z_moon_sun_seq.NEXTVAL INTO :NEW.moon_sun_id FROM DUAL;
+    SELECT z_astrology_seq.NEXTVAL INTO :NEW.astrology_id FROM DUAL;
 END;
 
 CREATE SEQUENCE z_desc_seq START WITH 1 INCREMENT BY 1;
@@ -80,5 +91,4 @@ BEFORE INSERT ON z_desc FOR EACH ROW
 BEGIN
     SELECT z_desc_seq.NEXTVAL INTO :NEW.desc_id FROM DUAL;
 END;
-
 
