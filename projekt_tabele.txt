@@ -18,8 +18,8 @@ CREATE TABLE z_city(
 
 CREATE TABLE z_weather(
     weather_id NUMBER PRIMARY KEY,
-    datetime DATE,
     city_id NUMBER, CONSTRAINT FK_wf_city FOREIGN KEY (city_id) REFERENCES z_city(city_id),
+    datetime DATE,
     tempmax NUMBER,
     tempmin NUMBER,
     temp NUMBER,
@@ -91,4 +91,3 @@ BEFORE INSERT ON z_desc FOR EACH ROW
 BEGIN
     SELECT z_desc_seq.NEXTVAL INTO :NEW.desc_id FROM DUAL;
 END;
-
